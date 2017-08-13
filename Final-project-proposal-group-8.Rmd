@@ -1,0 +1,360 @@
+---
+title: "The factors of students’ performance"
+author: 
+ - Stanley Njiru Kariuki
+ - Ahmed Hamouda 
+ - Xiaowei Wan
+date: "8/12/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align="center")
+```
+
+## Abstract
+This study seeks to determine the possible correlation among several factors affecting student academic performance. Data will be collected from a learning management system (LMS) called Kallboard 360, which provides users with a synchronous access to educational resources. The dataset consists of 480 student records of males and females. It also contains demographic, academic, and behavioral information from 14 different countries. R programming software will be utilized to conduct analysis and measure variables associated with academic performance. We hypothesize that the more active a student is in the class, the better performance they will have. In addition, this study will observe parent cooperation with the school relative to better performance outcomes.
+
+
+## Introduction
+Academic performance has been a standard measure for many countries and academic systems throughout the world. It is used to determine entry into higher institutions, strengths and weaknesses of students, along with directing job placements within certain fields.  In this case, academic performance is the extent to which students, have achieved their educational goals. Grading has long been used as a method to rank student achievement and performance.
+
+
+However, it should be noted that there are several factors which have an effect on performance standards ranging from environment, economic resources, educational systems, along with societal beliefs and expectations. For example, a study conducted by Farooq, Chaudhry, Shafiq and Berhanu (2011) looked at factors affecting students’ quality of academic performance, and found that socio-economic status and parents’ perception of education had a significant effect on overall academic achievement in secondary level education. This makes it challenging to specify direct factors which contribute to this. The purpose of this study is to determine attributes affecting student’s academic performance at lower level, middle school and high school. This will allow for us to determine which factors are the most indicative of academic performance. 
+Thus, the hypothesis that the more active a student is in the class, the better performance they will have and that the more a parent cooperates with the school the better the student’s academic performance. 
+
+### Read dataset and summary of edu dataset
+```{r student performance dataset}
+# Read dataset to edudataset
+studataset <- read.csv(file="/Users/xwan/Developer/HUProjects/ANLY510-51/ANLY510_Group8_Project/xAPI-Edu-Data.csv",head=TRUE,sep=",")
+# To get definition of the columns type
+str(studataset)
+```
+
+### Summary of Edu Dataset
+```{r Edu dataset summary}
+# Summary of Edu Dataset
+summary(studataset)
+```
+
+### Catagorical variables
+```{r edu dataset catagorical plots}
+par(mfrow = c(2, 2))
+plot(studataset$gender, sub="Gender", col=2:6)
+plot(studataset$NationalITy, sub="NationalITy", col=2:6)
+plot(studataset$PlaceofBirth, sub="PlaceofBirth", col=2:6)
+plot(studataset$StageID, sub="StageID", col=2:6)
+plot(studataset$Relation, sub="Relation", col=2:6)
+plot(studataset$GradeID, sub="GradeID", col=2:6)
+plot(studataset$Topic, sub="Topic", col=2:6)
+plot(studataset$Semester, sub="Semester", col=2:6)
+```
+```{r student absence days}
+par(mfrow = c(1, 2))
+plot(studataset$StudentAbsenceDays, sub="StudentAbsenceDays", col=2:6)
+```
+
+### Based on the the above plots several observations can be made:
+
+* Majority of students are male
+* Most of the students are from either Kuwait or Jordan
+* Majority of students are middleschool or lower
+
+### Numerical Varaibles
+```{r numerical varaibles, warning=FALSE}
+par(mfrow = c(2,2))
+plot(studataset$Class ~ studataset$raisedhands, xlab="raisedhands", ylab = "Class", col=2:6)
+plot(studataset$Class ~ studataset$VisITedResources, xlab="VisITedResources", ylab = "Class", col=2:6)
+plot(studataset$Class ~ studataset$AnnouncementsView, xlab="AnnouncementsView", ylab = "Class", col=2:6)
+plot(studataset$Class ~ studataset$Discussion, xlab="Discussion", ylab = "Class", col=2:6)
+```
+
+In general these features represent the level of student particapation in their respective courses. Cleary the students with low grades tend to have lower level of class particapation.
+
+```{r loading libraries, warning=FALSE, message=FALSE}
+## load libraries 
+library(ggplot2)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(randomForest)
+library(class)
+library(rpart)
+library(rpart.plot)
+library(caret)
+library(caTools)
+library(party)
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  require(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+```{r ggplot to visualize student count, warning=FALSE}
+# ggplot on student count and birth place
+p2 <- ggplot(data = studataset, aes(x = PlaceofBirth)) + geom_bar(aes(fill = NationalITy)) + 
+    labs(x = "Birth Place", y = "Student Count") + coord_flip()
+# ggplot on student count and section ID
+p3 <- ggplot(data = studataset, aes(x = SectionID, fill = Topic)) + geom_bar() +
+    labs(x = "Section ID", y = "Student Count") +
+    coord_flip()
+# ggplot on student count and topic
+p4 <- ggplot(data = studataset, aes(x = Topic, fill = gender)) + geom_bar() +
+    labs(x = "Topic", y = "Student Count") +
+    scale_y_continuous(breaks = seq(0,100,4)) + coord_flip()
+multiplot(p2, p4, p3, cols=2)
+```
+
+### Based on the the above ggplots several observations can be made:
+
+* USA is a mix of nationalities country
+* Class c has only IT and science students
+* Spain has worst male:female ratio whereas science, chemistry, english and french have good ratio.
+
+```{r parents survey effection, warning=FALSE}
+# Parents answer survey 
+ggp1 <- ggplot(data = studataset, aes(x = ParentAnsweringSurvey, fill = ParentschoolSatisfaction)) +
+    geom_bar() + 
+    labs(x = "Does parent answer survey ?", y = "Student Count")
+ggp2 <- ggplot(data = studataset, aes(x = ParentschoolSatisfaction)) +
+    geom_bar() + 
+    labs(x = "Is the parent satified with the school ?", y = "Student Count")
+ggp3 <- ggplot(data = studataset, aes(x = StudentAbsenceDays)) + geom_bar() + 
+            labs(x = "Is the student absent for more than seven days", y = "Student Count")
+ggp4 <- ggplot(data = studataset, aes(x = Class, fill = gender)) + geom_bar() +
+    labs(x = "Class", y = "Student Count")
+# parents answering survey and student count ggplot
+ggp5 <- ggplot(data = studataset, aes(x = Class, fill = ParentAnsweringSurvey)) + geom_bar() +
+  labs(x = "Class", y = "Student Count")
+# student absence days and student count ggplot
+ggp6 <- ggplot(data = studataset, aes(x = Class, fill = StudentAbsenceDays)) + geom_bar() +
+    labs(x = "Class", y = "Student Count")
+multiplot(ggp1, ggp2, ggp3, ggp4, ggp5, ggp6, cols = 2)
+```
+
+### Based on above ggplot of students count and parent survey, satisfaction and guardian, have serveral obersation:
+
+* Most of the parents who aren't satisfied with the school do not answer the survey and vice versa.
+* The students who have Moms as guardians have higher chances to get high class marks and vice-versa.
+* Students whose parents answer the survey are the ones getting good marks and vice-versa.
+* Student getting absent are the ones getting low marks and vice-versa.
+
+```{r scatter visualize, raisedhands, warning=FALSE}
+sc1 <- ggplot(data = studataset, aes( x = raisedhands, y = VisITedResources)) + geom_point() +
+    geom_smooth(method = "lm")
+
+sc2 <- ggplot(data = studataset, aes( x = raisedhands, y = AnnouncementsView)) + geom_point() +
+    geom_smooth(method = "lm")
+
+sc3 <- ggplot(data = studataset, aes( x = raisedhands, y = Discussion)) + geom_point() +
+    geom_smooth(method = "lm")
+
+sc4 <- ggplot(data = studataset, aes( x = VisITedResources, y = AnnouncementsView)) + geom_point() +
+    geom_smooth(method = "lm")
+
+sc5 <- ggplot(data = studataset, aes( x = VisITedResources, y = Discussion)) + geom_point() +
+    geom_smooth(method = "lm")
+
+sc6 <- ggplot(data = studataset, aes( x = AnnouncementsView, y = Discussion)) + geom_point() +
+    geom_smooth(method = "lm")
+
+multiplot(sc1, sc2, sc3, sc4, sc5, sc6, cols = 2)
+```
+
+
+```{r boxplot rais hands, warning=FALSE}
+# boxplot on topic and raisedhands
+rh1 <- ggplot(data = studataset, aes(x = Topic, y = raisedhands)) + geom_boxplot()
+# boxplot on Semester and raisedhands
+rh2 <- ggplot(data = studataset, aes(x = Semester, y = raisedhands)) + geom_boxplot()
+# boxplot on Relation and raisedhands
+rh3 <- ggplot(data = studataset, aes(x = Relation, y = raisedhands)) + geom_boxplot()
+# boxplot on ParentAnsweringSurvey and raisedhands
+rh4 <- ggplot(data = studataset, aes(x = ParentAnsweringSurvey, y = raisedhands)) + geom_boxplot()
+
+multiplot(rh1, rh2, rh3, rh4, cols = 2)
+```
+
+```{r density raisehands, warning=FALSE}
+# density on gender and raisedhands
+ds1 <- ggplot(data = studataset, aes(x = raisedhands, color = gender)) + geom_density()
+# density on topic and raisedhands
+ds2 <- ggplot(data = studataset, aes(x = raisedhands, color = Topic)) + geom_density()
+# density on section and raisedhands
+ds3 <- ggplot(data = studataset, aes(x = raisedhands, color = SectionID)) + geom_density()
+# density on semester and raisedhands
+ds4 <- ggplot(data = studataset, aes(x = raisedhands, color = Semester)) + geom_density()
+# density on class and raisedhands
+ds5 <- ggplot(data = studataset, aes(x = raisedhands, color = Class)) + geom_density()
+
+multiplot(ds1, ds2, ds3, ds4, cols = 2)
+```
+### In this study, we used different technique to visualize students raised hands study, have some discovery.
+We used ggplots, boxplots, scatter points and density to show the discoveries:
+
+* Based on gender, we discover that students who are girls raised more hands on class.
+* IT has very few hand raises intersetingly although most students study there.
+* Students in second semester has more hand raises.
+* On parent survey answered yes has more hand raises.
+* Students guadiant on their Moms has more hand raises.
+
+```{r split dataset into training data, and test dataset, warning=FALSE}
+# split data
+set.seed(55)
+split <- sample.split(studataset$Class, SplitRatio = 0.75)
+train <- subset(studataset, split == T)
+cv <- subset(studataset, split == F)
+```
+
+In this study, we split student dataset into training dataset and test predict dataset, in order to check the accuracy of below used modeling.
+
+```{r model, decision tree, warning=FALSE}
+# decision trees 
+tree.model <- rpart(Class ~ ., data = train, method = "class", minbucket = 1)
+prp(tree.model) 
+tree.predict <- predict(tree.model, cv, type = "class")
+table(cv$Class, tree.predict)
+```
+
+### Decision trees modeling
+From predict results, we can conclude that:
+
+* Students who are under 7 years old, and guardian by their Mum, who visited resources greater than or equal 88 times, from SaudiArabia country, they attend high school or middle school.
+
+
+```{r model, random forest, warning=FALSE}
+# random forest
+set.seed(10)
+rf.model <- randomForest(Class ~ .- SectionID , data = train, importance = TRUE,
+                         ntree = 2000, nodesize = 20)
+rf.predict <- predict(rf.model, cv)
+confusionMatrix(cv$Class, rf.predict)
+varImpPlot(rf.model) # accuracy-> 0.876. SectionID removed by traing a look at varImpPlot
+```
+
+### Random forest modeling. 
+We used random forest to train our training dataset, and show the predict result, based on the result, we can see the accuracy of this modeling is greater than 0.876.
+
+
+## Methods
+The data was collected from learning management system (LMS) called Kallboard 360. Such system provides users with a synchronous access to educational resources from any device with internet connection. The dataset consists of 480 student records and 16 features. The features are divided into three major categories:
+
+
+1. Demographic features such as gender and nationality.
+2. Academic background features such as educational stage, grade Level and section. 
+3. Behavioral features such as raised hand on class, opening resources, and school satisfaction.
+
+
+The dataset consists of 305 males and 175 females. The students come from different origins such as 179 students are from Kuwait, 172 students are from Jordan, 28 students from Palestine, 22 students are from Iraq, 17 students from Lebanon, 12 students from Tunis, 11 students from Saudi Arabia, 9 students from Egypt, 7 students from Syria, 6 students from USA, Iran and Libya, 4 students from Morocco and one student from Venezuela.
+
+
+The dataset is collected through two educational semesters: 245 student records are collected during the first semester and 235 student records are collected during the second semester. The data set includes also the school attendance feature such as the students are classified into two categories based on their absence days: 191 students exceed 7 absence days and 289 students their absence days under 7.
+
+
+## Discussion
+The above study is conducted to observe the factors that can influence student performance. The performance of the student is evaluated as class score, low, middle, or high. In our research, we analyze different factors among students who work good, in the middle, and who have a lower score.
+
+
+We set up a couple of different categories of factors to conduct the analysis, external, internal and parents’ performance. We know every kid has different talent, from the research we did, we found that generally, girls perform better than boys. It is interesting that, contrary to popular perception, girls perform much better than boys in science class. We believe as our research goes on, we will discover more phenomenon like this, which will make our research more and more interesting.
+
+
+Meanwhile, we understand that performance of the students in academics is not only influenced by their own characteristics gifted by nature but also effortful behavior in class is involved, for example, the frequency of raising hands, participating in the discussion, student absence days, and etc. Furthermore, how a parent performs will also impact a student.  We also take the parents performance into consideration.
+
+
+For the next step, we will focus our study on how active and energetic a student performs in class.  We make the following hypothesis:
+
+
+  * The more active a student is in the class, the better outcome of the performance they will gain.
+  * The more the parent cooperate with the school, the better performance the student will have.
+  
+  
+At the same time, we will focus on the study of the correlations between the various factors. And we will also analyze that among all these different factors, which one has the biggest impact to students’ performance.
+
+
+Hopefully, on the basis of our study and conclusions, recommendations can be suggested in order to solve the problems and limitations that are responsible for low student’s performance. We believe these recommendations will be useful for both administrative and academic point of view.
+
+## Result
+
+After applying classification techiques on the data set, the results and conclusions we can get are almost the same, the prediction we can get are basically accuracy based on the prediction we made using decision tree and random forest modeling.
+
+
+In this study, we predict students performance on class is good or not based on how many times they raised their hands on class, and their grad is good or bad.
+
+
+In addition, we can predict student performance based on different factors, and from our modeling, we can get that the relationship with Mum and Father are different, students who raisedhands on class more if they guardian by their mother. Whether Parent Answering Surveyfor their children are also the big influence to their childrend's raisedhands on class. Gender has a small effection on raisedhands.
+
+## Conclusion
+
+From above prediction, and visualization graphic tables and plots, we can conclude that: Students whose parents answering survey, and guardian by their mother, and answering survey as yes, students who raised their hand more on class can have better performance. Other factors have smaller effection on students' performance.
+
+
+## References
+
+
+Student's Academic Performance Dataset (xAPI-Edu-Data)
+
+
+https://www.kaggle.com/aljarah/xAPI-Edu-Data
+
+
+Daniyal, M. (n.d). The factors affecting the students’ performance. Retrieved from academia:
+
+
+https://www.academia.edu/4729029/THE_FACTORS_AFFECTING_THE_STUDENTS_PERFORMANCE
+
+
+Rmarkdown. (n.d.). HTML Documents. Retrieved from Rmarkdown Rstudio:
+
+
+http://rmarkdown.rstudio.com/html_document_format.html#custom_css
+
+
+M.S. Farooq, A.H. Chaudhry, M. Shafiq, G. Berhanu Factors Affecting Students’ Quality Of Academic Performance: A Case Of Secondary School Level 
+
+
+http://pu.edu.pk/images/journal/iqtm/PDF-FILES/01-Factor.pdf
+
+https://www.kaggle.com/arathee2/analyzing-data-and-predicting-class/code
+
+http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
